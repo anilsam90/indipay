@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
 use Softon\Indipay\Exceptions\IndipayParametersMissingException;
 
-class CCAvenueGateway implements PaymentGatewayInterface {
+class CCAvenueGateway implements PaymentGatewayInterface
+{
 
     protected $parameters = array();
     protected $merchantData = '';
@@ -32,20 +33,20 @@ class CCAvenueGateway implements PaymentGatewayInterface {
 
     public function getEndPoint()
     {
-        return $this->testMode?$this->testEndPoint:$this->liveEndPoint;
+        return $this->testMode ? $this->testEndPoint : $this->liveEndPoint;
     }
 
     public function request($parameters)
     {
-        $this->parameters = array_merge($this->parameters,$parameters);
+        $this->parameters = array_merge($this->parameters, $parameters);
 
         $this->checkParameters($this->parameters);
 
-        foreach($this->parameters as $key=>$value) {
-            $this->merchantData .= $key.'='.$value.'&';
+        foreach ($this->parameters as $key => $value) {
+            $this->merchantData .= $key . '=' . $value . '&';
         }
 
-        $this->encRequest = $this->encrypt($this->merchantData,$this->workingKey);
+        $this->encRequest = $this->encrypt($this->merchantData, $this->workingKey);
 
         return $this;
 
@@ -58,9 +59,9 @@ class CCAvenueGateway implements PaymentGatewayInterface {
     {
 
         Log::info('Indipay Payment Request Initiated: ');
-        return View::make('indipay::ccavenue')->with('encRequest',$this->encRequest)
-                             ->with('accessCode',$this->accessCode)
-                             ->with('endPoint',$this->getEndPoint());
+        return View::make('indipay::ccavenue')->with('encRequest', $this->encRequest)
+            ->with('accessCode', $this->accessCode)
+            ->with('endPoint', $this->getEndPoint());
 
     }
 
@@ -74,7 +75,7 @@ class CCAvenueGateway implements PaymentGatewayInterface {
     {
         $encResponse = $request->encResp;
 
-        $rcvdString = $this->decrypt($encResponse,$this->workingKey);
+        $rcvdString = $this->decrypt($encResponse, $this->workingKey);
         parse_str($rcvdString, $decResponse);
 
         return $decResponse;
@@ -103,92 +104,48 @@ class CCAvenueGateway implements PaymentGatewayInterface {
 
     }
 
-    /**
-     * CCAvenue Encrypt Function
-     *
-     * @param $plainText
-     * @param $key
-     * @return string
-     */
-    protected function encrypt($plainText,$key)
+    private function encrypt($plainText, $key)
     {
+        $encryptionMethod = "AES-128-CBC";
         $secretKey = $this->hextobin(md5($key));
         $initVector = pack("C*", 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f);
-        $openMode = @mcrypt_module_open(MCRYPT_RIJNDAEL_128, '','cbc', '');
-        $blockSize = @mcrypt_get_block_size(MCRYPT_RIJNDAEL_128, 'cbc');
-        $plainPad = $this->pkcs5_pad($plainText, $blockSize);
-        if (@mcrypt_generic_init($openMode, $secretKey, $initVector) != -1)
-        {
-            $encryptedText = @mcrypt_generic($openMode, $plainPad);
-            @mcrypt_generic_deinit($openMode);
-
-        }
+        $encryptedText = openssl_encrypt($plainText, $encryptionMethod, $secretKey, OPENSSL_RAW_DATA, $initVector);
         return bin2hex($encryptedText);
+
     }
 
-    /**
-     * CCAvenue Decrypt Function
-     *
-     * @param $encryptedText
-     * @param $key
-     * @return string
-     */
-    protected function decrypt($encryptedText,$key)
+    /*
+    * @param1 : Encrypted String
+    * @param2 : Working key provided by CCAvenue
+    * @return : Plain String
+    */
+    private function decrypt($encryptedText, $key)
     {
+        $encryptionMethod = "AES-128-CBC";
         $secretKey = $this->hextobin(md5($key));
         $initVector = pack("C*", 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f);
-        $encryptedText=$this->hextobin($encryptedText);
-        $openMode = @mcrypt_module_open(MCRYPT_RIJNDAEL_128, '','cbc', '');
-        @mcrypt_generic_init($openMode, $secretKey, $initVector);
-        $decryptedText = @mdecrypt_generic($openMode, $encryptedText);
-        $decryptedText = rtrim($decryptedText, "\0");
-        @mcrypt_generic_deinit($openMode);
+        $encryptedText = $this->hextobin($encryptedText);
+        $decryptedText = openssl_decrypt($encryptedText, $encryptionMethod, $secretKey, OPENSSL_RAW_DATA, $initVector);
         return $decryptedText;
-
     }
 
-
-    /**
-     * @param $plainText
-     * @param $blockSize
-     * @return string
-     */
-    protected function pkcs5_pad($plainText, $blockSize)
-    {
-        $pad = $blockSize - (strlen($plainText) % $blockSize);
-        return $plainText . str_repeat(chr($pad), $pad);
-    }
-
-
-    /**
-     * @param $hexString
-     * @return string
-     */
-    protected function hextobin($hexString)
+    private function hextobin($hexString)
     {
         $length = strlen($hexString);
-        $binString="";
-        $count=0;
-        while($count<$length)
-        {
-            $subString =substr($hexString,$count,2);
-            $packedString = pack("H*",$subString);
-            if ($count==0)
-            {
-                $binString=$packedString;
+        $binString = "";
+        $count = 0;
+        while ($count < $length) {
+            $subString = substr($hexString, $count, 2);
+            $packedString = pack("H*", $subString);
+            if ($count == 0) {
+                $binString = $packedString;
+            } else {
+                $binString .= $packedString;
             }
-
-            else
-            {
-                $binString.=$packedString;
-            }
-
-            $count+=2;
+            $count += 2;
         }
         return $binString;
     }
-
-
 
 
 }
