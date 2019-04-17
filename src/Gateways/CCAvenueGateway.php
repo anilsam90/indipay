@@ -104,7 +104,7 @@ class CCAvenueGateway implements PaymentGatewayInterface
 
     }
 
-    private function encrypt($plainText, $key)
+    protected function encrypt($plainText, $key)
     {
         $encryptionMethod = "AES-128-CBC";
         $secretKey = $this->hextobin(md5($key));
@@ -119,7 +119,7 @@ class CCAvenueGateway implements PaymentGatewayInterface
     * @param2 : Working key provided by CCAvenue
     * @return : Plain String
     */
-    private function decrypt($encryptedText, $key)
+    protected function decrypt($encryptedText, $key)
     {
         $encryptionMethod = "AES-128-CBC";
         $secretKey = $this->hextobin(md5($key));
@@ -129,7 +129,7 @@ class CCAvenueGateway implements PaymentGatewayInterface
         return $decryptedText;
     }
 
-    private function hextobin($hexString)
+    protected function hextobin($hexString)
     {
         $length = strlen($hexString);
         $binString = "";

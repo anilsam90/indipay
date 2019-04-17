@@ -7,7 +7,7 @@
         <input type=hidden name=encRequest value="{{ $encRequest }}">
         <input type=hidden name=access_code value="{{ $accessCode }}">
     </form>
-<script language='javascript'>document.redirect.submit();</script>
+<script type='text/javascript'>document.redirect.submit();</script>
 </body>
 </html>
 
